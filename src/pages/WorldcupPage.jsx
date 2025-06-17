@@ -1,43 +1,53 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import OptionCard from '../components/OptionCard';
-
-const sampleRounds = [
-    [
-        { label: '커피', image: '/images/coffee.jpg' },
-        { label: '녹차', image: '/images/greentea.jpg' },
-    ],
-    [
-        { label: '피자', image: '/images/pizza.jpg' },
-        { label: '햄버거', image: '/images/burger.jpg' },
-    ],
-];
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export default function WorldcupPage() {
-    const navigate = useNavigate();
-    const [roundIndex, setRoundIndex] = useState(0);
+    const [items, setItems] = useState([]);
+    const [round, setRound] = useState(1);
     const [selected, setSelected] = useState([]);
 
-    const handleSelect = (choice) => {
-        setSelected([...selected, choice]);
-        if (roundIndex + 1 < sampleRounds.length) {
-            setRoundIndex(roundIndex + 1);
+    useEffect(() => {
+        axios.get('/api/preferences/items')
+            .then(res => setItems(res.data))
+            .catch(err => console.error('항목 로딩 실패:', err));
+    }, []);
+
+    const handleSelect = (item) => {
+        const nextSelected = [...selected, item];
+
+        if (nextSelected.length === items.length / 2) {
+            if (nextSelected.length === 1) {
+                const winner = nextSelected[0];
+                alert(`최종 우승: ${winner.value}`);
+
+                axios.post('/api/preferences', {
+                    user_id: 1,
+                    selections: [winner],
+                });
+
+                return;
+            }
+
+            setItems(nextSelected);
+            setSelected([]);
+            setRound(prev => prev + 1);
         } else {
-            navigate('/result', { state: { result: [...selected, choice] } });
+            setSelected(nextSelected);
         }
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen px-6">
-            <h2 className="text-xl font-semibold mb-4">Round {roundIndex + 1}</h2>
-            <div className="flex gap-6">
-                {sampleRounds[roundIndex].map((option, i) => (
-                    <OptionCard
-                        key={i}
-                        label={option.label}
-                        image={option.image}
-                        onClick={() => handleSelect(option.label)}
-                    />
+        <div className="p-8">
+            <h2 className="text-xl font-bold mb-4">월드컵 - Round {round}</h2>
+            <div className="grid grid-cols-2 gap-4">
+                {items.map((item, idx) => (
+                    <button
+                        key={idx}
+                        className="border p-4 hover:bg-gray-100 rounded"
+                        onClick={() => handleSelect(item)}
+                    >
+                        {item.value}
+                    </button>
                 ))}
             </div>
         </div>

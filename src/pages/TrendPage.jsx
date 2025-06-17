@@ -1,12 +1,37 @@
-import React from 'react';
-import ChartBlock from '../components/ChartBlock';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
 export default function TrendPage() {
+    const [trends, setTrends] = useState([]);
+
+    useEffect(() => {
+        axios.get('/api/preferences/trends')
+            .then(res => {
+                if (res.data && res.data.data) {
+                    setTrends(res.data.data);
+                } else {
+                    console.warn('트렌드 응답 형식이 예상과 다릅니다:', res.data);
+                }
+            })
+            .catch(err => {
+                console.error('트렌드 데이터 불러오기 실패:', err);
+            });
+    }, []);
+
     return (
-        <div className="min-h-screen p-6">
-            <h2 className="text-2xl font-bold mb-4 text-center">전체 사용자 트렌드</h2>
-            <ChartBlock title="가장 인기 있는 선택" type="bar" />
-            <ChartBlock title="항목별 선호 비율" type="doughnut" />
+        <div className="p-8">
+            <h2 className="text-2xl font-bold mb-4">취향 트렌드</h2>
+            {trends.length === 0 ? (
+                <p>데이터가 없습니다.</p>
+            ) : (
+                <ul className="space-y-2">
+                    {trends.map((trend, index) => (
+                        <li key={index} className="border-b pb-2">
+                            <strong>{trend.category}</strong>: {trend.value} ({trend.count}명)
+                        </li>
+                    ))}
+                </ul>
+            )}
         </div>
     );
 }
