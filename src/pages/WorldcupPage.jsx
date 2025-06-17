@@ -1,54 +1,69 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 export default function WorldcupPage() {
+    const { category } = useParams();
+    const navigate = useNavigate();
     const [items, setItems] = useState([]);
-    const [round, setRound] = useState(1);
-    const [selected, setSelected] = useState([]);
+    const [roundItems, setRoundItems] = useState([]);
+    const [nextRound, setNextRound] = useState([]);
+    const [winner, setWinner] = useState(null);
 
     useEffect(() => {
-        axios.get('/api/preferences/items')
-            .then(res => setItems(res.data))
-            .catch(err => console.error('항목 로딩 실패:', err));
-    }, []);
+        axios.get(`/api/items/${category}`).then(res => {
+            setItems(res.data);
+            setRoundItems(res.data.slice(0, 2));
+        });
+    }, [category]);
 
-    const handleSelect = (item) => {
-        const nextSelected = [...selected, item];
+    const handleSelect = (selected) => {
+        setNextRound(prev => [...prev, selected]);
 
-        if (nextSelected.length === items.length / 2) {
-            if (nextSelected.length === 1) {
-                const winner = nextSelected[0];
-                alert(`최종 우승: ${winner.value}`);
-
-                axios.post('/api/preferences', {
-                    user_id: 1,
-                    selections: [winner],
-                });
-
-                return;
+        if (roundItems.length === 2) {
+            const remaining = items.slice(2);
+            if (remaining.length === 0) {
+                if (nextRound.length === 0) {
+                    setWinner(selected);
+                    axios.post('/api/preferences', {
+                        user_id: 1,
+                        selections: [{ category, value: selected.name }]
+                    });
+                    setTimeout(() => navigate('/result'), 1000);
+                } else {
+                    setItems(nextRound);
+                    setRoundItems(nextRound.slice(0, 2));
+                    setNextRound([]);
+                }
+            } else {
+                setItems(remaining);
+                setRoundItems(remaining.slice(0, 2));
             }
-
-            setItems(nextSelected);
-            setSelected([]);
-            setRound(prev => prev + 1);
-        } else {
-            setSelected(nextSelected);
         }
     };
 
+    if (!roundItems.length) return <div className="p-8">로딩 중...</div>;
+
+    const [left, right] = roundItems;
+
     return (
         <div className="p-8">
-            <h2 className="text-xl font-bold mb-4">월드컵 - Round {round}</h2>
+            <h2 className="text-xl font-bold mb-4">{category} 월드컵</h2>
             <div className="grid grid-cols-2 gap-4">
-                {items.map((item, idx) => (
-                    <button
-                        key={idx}
-                        className="border p-4 hover:bg-gray-100 rounded"
-                        onClick={() => handleSelect(item)}
-                    >
-                        {item.value}
-                    </button>
-                ))}
+                <div
+                    onClick={() => handleSelect(left)}
+                    className="border p-4 cursor-pointer hover:bg-gray-100"
+                >
+                    <img src={left.image} alt={left.name} className="w-full h-40 object-cover mb-2" />
+                    <p className="text-center">{left.name}</p>
+                </div>
+                <div
+                    onClick={() => handleSelect(right)}
+                    className="border p-4 cursor-pointer hover:bg-gray-100"
+                >
+                    <img src={right.image} alt={right.name} className="w-full h-40 object-cover mb-2" />
+                    <p className="text-center">{right.name}</p>
+                </div>
             </div>
         </div>
     );
